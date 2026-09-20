@@ -17,6 +17,11 @@ public class Local implements Storage {
 
 	public Local(String fileLocation) {
 		this.path = Paths.get(fileLocation);
+		try {
+			Path parent = this.path.getParent();
+			if (parent != null) {Files.createDirectories(parent);}
+			if (!Files.exists(this.path)) {Files.createFile(this.path);}
+	    } catch (IOException e) {e.printStackTrace();}
 	}
 
 	@Override

@@ -97,6 +97,17 @@ public class ByteHelper {
 	}
 	
 	/**
+	 * Function that prepends length to an array of bytes
+	 * @param b byte array being serialized
+	 * @return The byte array in.. byte form, the bytes are ordered as so:
+	 * [Array Length][[Byte], ...[Byte]]
+	 */
+	public static byte[] toBytes(byte[] b) {
+		ByteBuffer y = ByteBuffer.allocate(b.length+4);  
+		y.putInt(b.length); y.put(b); return y.array();
+	}
+	
+	/**
 	 * Function that serializes an object
 	 * @param <T> Object that implements Serializable
 	 * @param object  Object being serialized
@@ -119,6 +130,16 @@ public class ByteHelper {
 	public static byte[] toBytes(String s) {
 		byte[] b = s.getBytes(StandardCharsets.UTF_8);
 		return ByteHelper.mergeBytes(ByteHelper.toBytes(b.length), b);
+	}
+	
+	/**
+	 * Function that serializes a long
+	 * @param l Long to be serialized
+	 * @return The string in byte form, the bytes are ordered as so:
+	 * [Long]
+	 */
+	public static byte[] toBytes(long l) {
+		return ByteBuffer.allocate(8).putLong(l).array();
 	}
 	
 	/**
@@ -242,6 +263,11 @@ public class ByteHelper {
 		} return rtrn;
 	}
 	
+	public byte[] readByteArr() {
+		byte[] b = new byte[this.byteStream.getInt()];
+		this.byteStream.get(b); return b;
+	}
+	
 	public boolean[] readBoolArr() {
 		boolean[] rtrn = new boolean[this.byteStream.getInt()]; 
 		for (int i = 0; i < rtrn.length; i++) {
@@ -265,6 +291,10 @@ public class ByteHelper {
 		byte[] str = new byte[this.byteStream.getInt()]; 
 		this.byteStream.get(str);
 		return new String(str, StandardCharsets.UTF_8);
+	}
+	
+	public long readLong() {
+		return this.byteStream.getLong();
 	}
 	
 	public float readFloat() {
