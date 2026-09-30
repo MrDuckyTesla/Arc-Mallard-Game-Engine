@@ -6,7 +6,7 @@ import java.io.IOException;
 
 import engine.data.serializations.FastSerializable;
 
-public class Database<T extends FastSerializable<T>> implements AutoCloseable {
+public class ChunkedDB<T extends FastSerializable<T>> implements AutoCloseable {
 	
 	private final FastSerializable<?>[] prototypes;
 	private final String location;
@@ -15,7 +15,7 @@ public class Database<T extends FastSerializable<T>> implements AutoCloseable {
 	private Chunk<T> loadedChunk = new Chunk<>();
 	private int currentLoadedChunk = -1;
 
-	public Database(int totalChunks, String fileLocation, FastSerializable<?>... prototypes) {
+	public ChunkedDB(int totalChunks, String fileLocation, FastSerializable<?>... prototypes) {
 		this.totalChunks = totalChunks;
 		this.location = fileLocation;
 		this.prototypes = prototypes;
@@ -24,13 +24,13 @@ public class Database<T extends FastSerializable<T>> implements AutoCloseable {
 	public void remove(String key) throws IOException {
 		if (this.currentLoadedChunk != Math.floorMod(key.hashCode(), this.totalChunks)) {
 			this.unloadChunk(); this.loadChunk(Math.floorMod(key.hashCode(), this.totalChunks));
-		} this.loadedChunk.remove(key); this.writeChunk();
+		} this.loadedChunk.remove(key);
 	}
 	
 	public void put(String key, T payload) throws IOException {
 		if (this.currentLoadedChunk != Math.floorMod(key.hashCode(), this.totalChunks)) {
 			this.unloadChunk(); this.loadChunk(Math.floorMod(key.hashCode(), this.totalChunks));
-		} this.loadedChunk.put(key, payload); this.writeChunk();
+		} this.loadedChunk.put(key, payload);
 	}
 	
 	public T get(String key) throws IOException {
@@ -60,6 +60,15 @@ public class Database<T extends FastSerializable<T>> implements AutoCloseable {
 		    if (parent != null) {Files.createDirectories(parent);}
 			Files.write(path, this.loadedChunk.serialize());
 		} 
+	}
+	
+	public void emptyFolder() throws IOException {
+		if (Files.exists(Path.of(this.location))) {
+			Files.list(Path.of(this.location)).forEach(path -> {
+				try {Files.delete(path);} 
+				catch (IOException e) {e.printStackTrace();} 
+			}); 
+		}
 	}
 
 	@Override
