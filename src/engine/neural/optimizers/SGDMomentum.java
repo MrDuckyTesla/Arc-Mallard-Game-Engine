@@ -39,10 +39,10 @@ public class SGDMomentum implements Optimizer {
 	// momentum * velocity - learningRate * gradient
 	public void updateWeights(Matrix weights, Matrix gradient) {
 		// Adds old weights if they exist or makes new ones
-		 Matrix velocity = this.velocityWeights.computeIfAbsent(
+		Matrix velocity = this.velocityWeights.computeIfAbsent(
 			weights, m -> this.tempWeights.isEmpty()? 
 				new Matrix(weights.getWid(), weights.getHgt()) :
-				this.tempWeights.poll()  // Lambdas are crazy
+				this.tempWeights.poll()
 		); // Scale velocity matrix by momentum
 		velocity.scaleMatrix(this.momentum);
 		// Scale gradient by learning rate
@@ -77,12 +77,12 @@ public class SGDMomentum implements Optimizer {
 		return ByteHelper.mergeBytes(
 			ByteHelper.toBytes(this.learningRate),
 			ByteHelper.toBytes(this.momentum),
-			this.toBytes(this.velocityWeights),
-			this.toBytes(this.velocityBiases)
+			toBytes(this.velocityWeights),
+			toBytes(this.velocityBiases)
 		);
 	}
 	
-	public <T extends Matrix> byte[] toBytes(IdentityHashMap<T, T> i) {
+	public static <T extends Matrix> byte[] toBytes(IdentityHashMap<T, T> i) {
 		byte[] bytes = ByteHelper.toBytes(i.size());
 		for (Map.Entry<T, T> entry : i.entrySet()) {
 			bytes = ByteHelper.mergeBytes(bytes, ByteHelper.toBytes(entry.getValue()));

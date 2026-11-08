@@ -37,9 +37,10 @@ public class Vector extends Matrix {
 		} return new Vector(norm);
 	}
 	
-	public float get(int num) {return this.getMatrix()[num];}
-	
 	public void add(int num, float payload) {this.getMatrix()[num] += payload;}
+	
+	@Override
+	public float get(int num) {return this.getMatrix()[num];}
 	
 	@Override
 	public void set(int num, float payload) {this.getMatrix()[num] = payload;}

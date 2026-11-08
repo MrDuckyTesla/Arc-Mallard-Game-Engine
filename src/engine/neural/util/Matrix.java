@@ -159,6 +159,8 @@ public class Matrix implements Iterable<Float>, FastSerializable<Matrix> {
 	
 	public int getLength() {return this.matrix.length;}
 	
+	public float get(int num) {return this.matrix[num];}
+	
 	public float get(int row, int col) {return this.matrix[col + row*this.wid];}
 	
 	public Vector getRow(int row) {

@@ -69,7 +69,7 @@ public class Policy<T> extends Feedforward {
 		}
 	}
 	
-	public  T[] computeBestNoise(int num, Vector prediction, Simulation<T> s, Object...args) {
+	public T[] computeBestNoise(int num, Vector prediction, Simulation<T> s, Object...args) {
 		// Set the best noise to the current noise
 		Vector bestNoise = new Vector(this.noise.getMatrix().length);
 		// Set the last prediction to the current prediction

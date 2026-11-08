@@ -21,7 +21,7 @@ public interface FastSerializable<T> extends Serialization<T> {
 	 * Returns an object array of length size
 	 * @param length length of object array
 	 * @return Object array, shouldnt be anything more than just
-	 * {@snippet
+	 * {@snippet:
 	 * return new Example[length];
 	 * } 
 	 */
