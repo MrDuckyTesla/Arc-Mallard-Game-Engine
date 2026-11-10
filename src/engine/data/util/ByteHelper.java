@@ -278,7 +278,7 @@ public class ByteHelper {
 	@SuppressWarnings("unchecked")
 	public <T extends FastSerializable<?>> T readObject(T proto) {
 		byte[] bytes = new byte[this.readInt()]; this.byteStream.get(bytes);
-		return (T) proto.deserialize(new ByteHelper(bytes));
+		return (T) proto.deserialize(new ByteHelper(bytes), proto);
 	}
 	
 	public <T extends EasySerializable<T>> T readObj(T prototype) {

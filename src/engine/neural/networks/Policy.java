@@ -1,7 +1,11 @@
 package engine.neural.networks;
 
+import java.util.Comparator;
+import java.util.PriorityQueue;
 import java.util.Random;
 
+import engine.data.serializations.FastSerializable;
+import engine.data.util.ByteHelper;
 import engine.neural.*;
 
 import engine.neural.util.Matrix;
@@ -70,7 +74,7 @@ public class Policy<T> extends Feedforward {
 	}
 	
 	public T[] computeBestNoise(int num, Vector prediction, Simulation<T> s, Object...args) {
-		// Set the best noise to the current noise
+		// Create an empty vector for best noise
 		Vector bestNoise = new Vector(this.noise.getMatrix().length);
 		// Set the last prediction to the current prediction
 		this.lastPrediction = prediction.copy();
@@ -83,7 +87,7 @@ public class Policy<T> extends Feedforward {
 			// get a candidate noise vector
 			candidate = new Vector(this.noise.getMatrix().length);
 			for (int j = 0; j < candidate.getLength(); j++) {
-				// Add noise to candidate whilst keeping it within -1, 1 range
+				// Add noise to candidate
 				candidate.set(j, (float) rand.nextGaussian());
 			} // Simulate the candidate with noise
 			SimulationResult<T> result = s.simulate(candidate, args);
@@ -97,6 +101,64 @@ public class Policy<T> extends Feedforward {
 		} this.noise = bestNoise; return stateOfBestSim;
 	}
 	
+	public T[] computeBestAverageNoise(int num, int top, Vector prediction, Simulation<T> s, Object...args) {
+		class Candidate {
+			public Vector noise; public float reward;
+			public Candidate(Vector noise, float reward) {
+				this.noise = noise; this.reward = reward;
+			}
+		} // Set the last prediction to the current prediction
+		this.lastPrediction = prediction.copy();
+		// Create an array of empty vectors for best noise and initialize variables
+		PriorityQueue<Candidate> elite = new PriorityQueue<>(top, Comparator.comparingDouble(c -> c.reward));
+		// Set other values in array to initial values
+		Vector candidate = new Vector(this.noise.getMatrix().length);
+		SimulationResult<T> result = s.simulate(candidate, args);
+		elite.add(new Candidate(candidate, this.rewardFun.calculate(result.sim, result.arg)));
+		// For the amount of simulations requested 
+		for (int i = 0; i < num; i++) {
+			// get a candidate noise vector
+			candidate = new Vector(this.noise.getMatrix().length);
+			for (int j = 0; j < candidate.getLength(); j++) {
+				// Add noise to candidate
+				candidate.set(j, (float) rand.nextGaussian());
+			} // Simulate the candidate with noise
+			result = s.simulate(candidate, args);
+			// Get the reward associated with candidates simulation
+			float currReward = this.rewardFun.calculate(result.sim, result.arg);
+			// Check if queue has less than top candidates
+			if (elite.size() < top) {
+				elite.add(new Candidate(new Vector(candidate.getMatrix()), currReward));
+			} // Replace best reward if current reward is better
+			else if (currReward > elite.peek().reward) {
+				elite.poll();
+				elite.add(new Candidate(new Vector(candidate.getMatrix()), currReward));
+			} // Set noise to average noise and return the simulation
+		} Vector average = new Vector(candidate.getLength());
+		for (int i = 0; i < top; i++) {
+			average.addMatrix(elite.poll().noise.getMatrix());
+		} average.scaleMatrix(1f/top);
+		this.noise = average; return s.simulate(average, args).sim;
+	}
+	
 	public Vector getNoise() {return this.noise;}
+	
+	@Override
+	public Network deserialize(ByteHelper b, FastSerializable<?>... prototypes) {
+//		Feedforward(int[] networkSizes, Initializer initializer, Activation activation, Cost cost, Optimizer optimizer)
+		Policy<T> p = new Policy<>( 
+			b.readIntArr(),
+			(Initializer) b.readObject(prototypes[0]),
+			(Activation) b.readObject(prototypes[1]),
+			(Cost) b.readObject(prototypes[2]),
+			(Optimizer) b.readObject(prototypes[3]),
+			this.rewardFun
+		);
+		p.biases = b.readObjArr(new Vector());
+		p.activations = b.readObjArr(new Vector());
+		p.preActivations = b.readObjArr(new Vector());
+		p.weights = b.readObjArr(new Matrix());
+		return p;
+	}
 
 }

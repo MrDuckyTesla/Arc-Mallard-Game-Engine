@@ -14,10 +14,7 @@ public class Dynamic implements Activation {
 		if (activations.length == 0) {throw new IllegalArgumentException();} 
 		for (Activation a : activations) {
 			if (a == null) {throw new IllegalArgumentException();}
-		} 
-		this.activations = activations; 
-		this.layers = layers;
-		
+		} this.activations = activations; this.layers = layers;
 		this.derivativeLayer = activations.length - 1;
 		this.derivativeNum = layers[this.derivativeLayer + 1];
 	}
@@ -25,7 +22,6 @@ public class Dynamic implements Activation {
 	@Override
 	public float function(float x) {
 		float fun = this.activations[this.functionLayer].function(x);
-		
 		this.functionNum++;
 		if (this.functionNum >= this.layers[this.functionLayer + 1]) {
 			this.functionNum = 0; this.functionLayer++;
@@ -36,7 +32,6 @@ public class Dynamic implements Activation {
 	@Override
 	public float derivative(float x) {
 		float der = this.activations[this.derivativeLayer].derivative(x);
-		
 		this.derivativeNum--;
 		if (this.derivativeNum <= 0) {
 			this.derivativeLayer--;
@@ -59,9 +54,20 @@ public class Dynamic implements Activation {
 
 	@Override
 	public Activation deserialize(ByteHelper b, FastSerializable<?>... prototypes) {
-		Dynamic d = new Dynamic(b.readIntArr(), (Activation[]) b.readObjArr(prototypes[0]));
+		Dynamic d = new Dynamic(b.readIntArr(), this.getActivation(b, prototypes));
 		d.derivativeLayer = b.readInt(); d.derivativeNum = b.readInt();
 		d.functionLayer = b.readInt(); d.functionNum = b.readInt(); return d;
+	}
+	
+	private Activation[] getArr() {return this.activations;}
+	
+	private Activation[] getActivation(ByteHelper bytes, FastSerializable<?>... prototypes) {
+		Activation[] a = ((Dynamic) prototypes[0]).getArr();
+		Activation[] b = new Activation[a.length];
+		int len = bytes.readInt();
+		for (int i = 0; i < len; i++) {
+			b[i] = bytes.readObject(a[i]);
+		} return b;
 	}
 
 	@Override

@@ -3,6 +3,7 @@ package engine.neural.optimizers;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Queue;
 
@@ -21,6 +22,9 @@ public class AdamW implements Optimizer {
 	private Queue<Matrix> tempfrstWght = new ArrayDeque<>(), tempscndWght = new ArrayDeque<>();
 	private Queue<Vector> tempfrstBias = new ArrayDeque<>(), tempscndBias = new ArrayDeque<>();
 	
+	private ArrayList<Matrix> wghtOrder = new ArrayList<>();
+	private ArrayList<Vector> biasOrder = new ArrayList<>();
+	
 	private float learningRate, wghtDecay, frstDecay = 0.9f, scndDecay = 0.999f; 
 	private int totalLayers, currLayer = 0, step = 0;
 
@@ -34,8 +38,12 @@ public class AdamW implements Optimizer {
 
 	@Override
 	public void updateWeights(Matrix weights, Matrix gradient) {
-		Matrix frstMoment = this.frstMomentWght.computeIfAbsent(weights, m -> this.tempfrstWght.isEmpty()? new Matrix(weights.getWid(), weights.getHgt()) : this.tempfrstWght.poll());
-		Matrix scndMoment = this.scndMomentWght.computeIfAbsent(weights, m -> this.tempscndWght.isEmpty()? new Matrix(weights.getWid(), weights.getHgt()) : this.tempscndWght.poll());
+		Matrix frstMoment = this.frstMomentWght.computeIfAbsent(weights, m -> {
+			this.wghtOrder.add(m);
+			return this.tempfrstWght.isEmpty()? new Matrix(weights.getWid(), weights.getHgt()) : this.tempfrstWght.poll();
+		}); Matrix scndMoment = this.scndMomentWght.computeIfAbsent(weights, 
+			m -> this.tempscndWght.isEmpty()? new Matrix(weights.getWid(), weights.getHgt()) : this.tempscndWght.poll()
+		);
 		
 		if (currLayer == 0) {step++;} currLayer = (currLayer + 1) % totalLayers; 
 		
@@ -56,8 +64,12 @@ public class AdamW implements Optimizer {
 
 	@Override
 	public void updateBiases(Vector biases, Vector delta) {
-		Vector frstMoment = this.frstMomentBias.computeIfAbsent(biases, v -> this.tempfrstBias.isEmpty()? new Vector(biases.getHgt()) : this.tempfrstBias.poll());
-		Vector scndMoment = this.scndMomentBias.computeIfAbsent(biases, v -> this.tempscndBias.isEmpty()? new Vector(biases.getHgt()) : this.tempscndBias.poll());
+		Vector frstMoment = this.frstMomentBias.computeIfAbsent(biases, v -> {
+			this.biasOrder.add(v);
+			return this.tempfrstBias.isEmpty()? new Vector(biases.getHgt()) : this.tempfrstBias.poll();
+		}); Vector scndMoment = this.scndMomentBias.computeIfAbsent(biases, 
+			v -> this.tempscndBias.isEmpty()? new Vector(biases.getHgt()) : this.tempscndBias.poll()
+		);
 		
 		float grad, old, frstPow =  (float) (1 - Math.pow(frstDecay, step)), scndPow =  (float) (1 - Math.pow(scndDecay, step));
 		
@@ -81,29 +93,40 @@ public class AdamW implements Optimizer {
 			ByteHelper.toBytes(this.totalLayers), 
 			ByteHelper.toBytes(this.currLayer),
 			ByteHelper.toBytes(this.step),
-			AdamW.toBytes(this.frstMomentWght, this.scndMomentWght),
-			AdamW.toBytes(this.frstMomentBias, this.scndMomentBias)
+			AdamW.toBytes(this.wghtOrder, this.frstMomentWght, this.scndMomentWght),
+			AdamW.toBytes(this.biasOrder, this.frstMomentBias, this.scndMomentBias)
 		);
 	}
 	
-	public static <T extends Matrix> byte[] toBytes(IdentityHashMap<T, T> i, IdentityHashMap<T, T> j) {
-		ArrayList<T> keys = new ArrayList<>(i.keySet());
-		byte[] ibytes = ByteHelper.toBytes(keys.size()), jbytes = ByteHelper.toBytes(keys.size());
+	public static <T extends Matrix> byte[] toBytes(ArrayList<T> keys, IdentityHashMap<T, T> i, IdentityHashMap<T, T> j) {
+//		ArrayList<T> keys = new ArrayList<>(i.keySet());
+		byte[] bytes = ByteHelper.toBytes(keys.size());
 		for (T k : keys) {
-			ibytes = ByteHelper.mergeBytes(ibytes, ByteHelper.toBytes(i.get(k)));
-			jbytes = ByteHelper.mergeBytes(jbytes, ByteHelper.toBytes(j.get(k)));
-		} return ByteHelper.mergeBytes(ibytes, jbytes);
+			bytes = ByteHelper.mergeBytes(
+				bytes, 
+				ByteHelper.toBytes(i.get(k)), 
+				ByteHelper.toBytes(j.get(k))
+			);
+		} return bytes;
 	}
 
 	@Override
 	public Optimizer deserialize(ByteHelper b, FastSerializable<?>... prototypes) {
 		AdamW a = new AdamW(b.readFloat(), b.readFloat(), b.readInt()); 
 		a.currLayer = b.readInt(); a.step = b.readInt();
-		a.tempfrstWght = new ArrayDeque<>(Arrays.asList(b.readObjArr(new Matrix(0, 0))));
-		a.tempscndWght = new ArrayDeque<>(Arrays.asList(b.readObjArr(new Matrix(0, 0))));
-		a.tempfrstBias = new ArrayDeque<>(Arrays.asList((Vector[]) b.readObjArr(new Vector(0))));
-		a.tempscndBias = new ArrayDeque<>(Arrays.asList((Vector[]) b.readObjArr(new Vector(0))));
+		a.tempfrstWght = new ArrayDeque<>(); a.tempscndWght = new ArrayDeque<>();
+		a.tempfrstBias = new ArrayDeque<>(); a.tempscndBias = new ArrayDeque<>();
+		this.readQueue(a.tempfrstWght, a.tempscndWght, b, new Matrix());
+		this.readQueue(a.tempfrstBias, a.tempscndBias, b, new Vector());
 		return a;
+	}
+	
+	public <T extends Matrix> void readQueue(Queue<T> a, Queue<T> b, ByteHelper bytes, T proto) {
+		int len = bytes.readInt();
+		for (int i = 0; i < len; i++) {
+			a.add((T) bytes.readObject(proto));
+			b.add((T) bytes.readObject(proto));
+		}
 	}
 
 	@Override
