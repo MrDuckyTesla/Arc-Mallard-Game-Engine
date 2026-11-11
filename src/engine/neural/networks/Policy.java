@@ -73,7 +73,7 @@ public class Policy<T> extends Feedforward {
 		}
 	}
 	
-	public T[] computeBestNoise(int num, Vector prediction, Simulation<T> s, Object...args) {
+	public void computeBestNoise(int num, Vector prediction, Simulation<T> s, Object...args) {
 		// Create an empty vector for best noise
 		Vector bestNoise = new Vector(this.noise.getMatrix().length);
 		// Set the last prediction to the current prediction
@@ -81,7 +81,7 @@ public class Policy<T> extends Feedforward {
 		// Set the best results to the current simulation
 		SimulationResult<T> bestResult = s.simulate(bestNoise, args);
 		float bestReward = this.rewardFun.calculate(bestResult.sim, bestResult.arg);
-		T[] stateOfBestSim = bestResult.sim; Vector candidate;
+		Vector candidate;
 		// For the amount of simulations requested 
 		for (int i = 0; i < num; i++) {
 			// get a candidate noise vector
@@ -95,13 +95,13 @@ public class Policy<T> extends Feedforward {
 			float currReward = this.rewardFun.calculate(result.sim, result.arg);
 			// Replace best reward if current reward is better
 			if (currReward > bestReward) {
-				stateOfBestSim = result.sim; bestReward = currReward;
+				bestReward = currReward;
 				bestNoise = new Vector(candidate.getMatrix());
 			} // Set noise to best noise and return the simulation
-		} this.noise = bestNoise; return stateOfBestSim;
+		} this.noise = bestNoise;
 	}
 	
-	public T[] computeBestAverageNoise(int num, int top, Vector prediction, Simulation<T> s, Object...args) {
+	public void computeBestAverageNoise(int num, int top, Vector prediction, Simulation<T> s, Object...args) {
 		class Candidate {
 			public Vector noise; public float reward;
 			public Candidate(Vector noise, float reward) {
@@ -137,8 +137,7 @@ public class Policy<T> extends Feedforward {
 		} Vector average = new Vector(candidate.getLength());
 		for (int i = 0; i < top; i++) {
 			average.addMatrix(elite.poll().noise.getMatrix());
-		} average.scaleMatrix(1f/top);
-		this.noise = average; return s.simulate(average, args).sim;
+		} average.scaleMatrix(1f/top); this.noise = average;
 	}
 	
 	public Vector getNoise() {return this.noise;}

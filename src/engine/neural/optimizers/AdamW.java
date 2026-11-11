@@ -41,7 +41,8 @@ public class AdamW implements Optimizer {
 		Matrix frstMoment = this.frstMomentWght.computeIfAbsent(weights, m -> {
 			this.wghtOrder.add(m);
 			return this.tempfrstWght.isEmpty()? new Matrix(weights.getWid(), weights.getHgt()) : this.tempfrstWght.poll();
-		}); Matrix scndMoment = this.scndMomentWght.computeIfAbsent(weights, 
+		}); 
+		Matrix scndMoment = this.scndMomentWght.computeIfAbsent(weights, 
 			m -> this.tempscndWght.isEmpty()? new Matrix(weights.getWid(), weights.getHgt()) : this.tempscndWght.poll()
 		);
 		
@@ -67,7 +68,8 @@ public class AdamW implements Optimizer {
 		Vector frstMoment = this.frstMomentBias.computeIfAbsent(biases, v -> {
 			this.biasOrder.add(v);
 			return this.tempfrstBias.isEmpty()? new Vector(biases.getHgt()) : this.tempfrstBias.poll();
-		}); Vector scndMoment = this.scndMomentBias.computeIfAbsent(biases, 
+		}); 
+		Vector scndMoment = this.scndMomentBias.computeIfAbsent(biases, 
 			v -> this.tempscndBias.isEmpty()? new Vector(biases.getHgt()) : this.tempscndBias.poll()
 		);
 		
