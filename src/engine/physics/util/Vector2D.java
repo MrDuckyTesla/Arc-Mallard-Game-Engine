@@ -43,6 +43,9 @@ public class Vector2D {
 	public void sclX(float x) {this.x *= x;}
 	public void sclY(float y) {this.y *= y;}
 	
+	public Vector2D copy() {return new Vector2D(x, y);}
+	
+	@Override
 	public String toString() {
 		return "x = " + this.x + ", y = " + this.y;
 	}
