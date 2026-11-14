@@ -7,13 +7,13 @@ import java.util.Random;
 import engine.data.serializations.FastSerializable;
 import engine.data.util.ByteHelper;
 import engine.neural.*;
-
+import engine.neural.util.Copyable;
 import engine.neural.util.Matrix;
 import engine.neural.util.Vector;
 
 import engine.neural.networks.Policy.Simulation.SimulationResult;
 
-public class Policy<T> extends Feedforward {
+public class Policy<T extends Copyable<T>> extends Feedforward {
 	
 	private RewardFunction<T> rewardFun;
 	private Vector noise, lastPrediction;
@@ -41,6 +41,18 @@ public class Policy<T> extends Feedforward {
 			public SimulationResult(T[] sim, Object...args) {
 				this.sim = sim; this.arg = args;
 			}
+		}
+	}
+	
+	@FunctionalInterface
+	public interface SimulationStep<T, N extends Feedforward> {
+		SimulationResult<T> simulate(N net, Vector noise, T[] state, Object...args);
+	}
+	
+	private class Candidate {
+		public Vector noise; public float reward;
+		public Candidate(Vector noise, float reward) {
+			this.noise = noise; this.reward = reward;
 		}
 	}
 	
@@ -102,12 +114,7 @@ public class Policy<T> extends Feedforward {
 	}
 	
 	public void computeBestAverageNoise(int num, int top, Vector prediction, Simulation<T> s, Object...args) {
-		class Candidate {
-			public Vector noise; public float reward;
-			public Candidate(Vector noise, float reward) {
-				this.noise = noise; this.reward = reward;
-			}
-		} // Set the last prediction to the current prediction
+		// Set the last prediction to the current prediction
 		this.lastPrediction = prediction.copy();
 		// Create an array of empty vectors for best noise and initialize variables
 		PriorityQueue<Candidate> elite = new PriorityQueue<>(top, Comparator.comparingDouble(c -> c.reward));
@@ -133,6 +140,44 @@ public class Policy<T> extends Feedforward {
 			else if (currReward > elite.peek().reward) {
 				elite.poll();
 				elite.add(new Candidate(new Vector(candidate.getMatrix()), currReward));
+			} // Set noise to average noise and return the simulation
+		} Vector average = new Vector(candidate.getLength());
+		for (int i = 0; i < top; i++) {
+			average.addMatrix(elite.poll().noise.getMatrix());
+		} average.scaleMatrix(1f/top); this.noise = average;
+	}
+	
+	public <N extends Feedforward> void computeBestAverageLongtermNoise(int num, int top, int frames, Vector prediction, SimulationStep<T, N> s, N net, T[] state, Object...args) {
+		// Set the last prediction to the current prediction
+		this.lastPrediction = prediction.copy();
+		// Create an array of empty vectors for best noise and initialize variables
+		PriorityQueue<Candidate> elite = new PriorityQueue<>(top, Comparator.comparingDouble(c -> c.reward));
+		// Set other values in array to initial values
+		Vector candidate = new Vector(this.noise.getMatrix().length);
+		// For the number of candidates requested
+		for (int i = 0; i < num; i++) {
+			// get a candidate noise vector
+			candidate = new Vector(this.noise.getMatrix().length);
+			for (int j = 0; j < candidate.getLength(); j++) {
+				// Add noise to candidate
+				candidate.set(j, (float) rand.nextGaussian());
+			} float reward = 0; SimulationResult<T> result;
+			T[] stateSim = state; Object[] o = args;
+			// For the number of frames requested
+			for (int j = 0; j < frames; j++) {
+				// Simulate the candidate with noise
+				result = s.simulate(net, candidate, stateSim, o);
+				// Get the reward associated with candidates simulation
+				reward += this.rewardFun.calculate(result.sim, result.arg);
+				// Copy the current state and arguments
+				stateSim = result.sim; o = result.arg;
+			} // Check if queue has less than top candidates
+			if (elite.size() < top) {
+				elite.add(new Candidate(new Vector(candidate.getMatrix()), reward));
+			} // Replace best reward if current reward is better
+			else if (reward > elite.peek().reward) {
+				elite.poll();
+				elite.add(new Candidate(new Vector(candidate.getMatrix()), reward));
 			} // Set noise to average noise and return the simulation
 		} Vector average = new Vector(candidate.getLength());
 		for (int i = 0; i < top; i++) {
